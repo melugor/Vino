@@ -53,38 +53,73 @@ st.write("Ingrese sus credenciales para acceder.")
 usuario = st.text_input("Usuario")
 clave = st.text_input("Clave", type="password")
 
-# Datos de entrada
-caracteristicas = [
-    "fixed acidity", "volatile acidity", "citric acid", "residual sugar",
-    "chlorides", "free sulfur dioxide", "total sulfur dioxide", "density",
-    "pH", "sulphates", "alcohol"
-]
+# Credenciales de ejemplo
+if usuario == "operario" and clave == "operario":
+    st.header("🔧 Panel del Operario")
+    
+    # Datos por defecto para vino de mala calidad
+    valores_defecto = {
+        "fixed acidity": 7.0, "volatile acidity": 1.0, "citric acid": 0.0, "residual sugar": 1.0,
+        "chlorides": 0.1, "free sulfur dioxide": 5.0, "total sulfur dioxide": 15.0, "density": 1.003,
+        "pH": 3.0, "sulphates": 0.3, "alcohol": 8.0
+    }
 
-valores = {}
-for feature in caracteristicas:
-    valores[feature] = st.number_input(f"{feature}", value=0.0, format="%.2f")
+    valores = {}
+    for feature, default in valores_defecto.items():
+        valores[feature] = st.number_input(f"{feature}", value=default, format="%.2f")
 
-if st.button("Predecir"):
-    X = np.array(list(valores.values())).reshape(1, -1)
-    X_scaled = scaler.transform(X)
-    prediccion = modelo.predict(X_scaled)[0]
-
-    calidad = "Bueno" if prediccion == 1 else "Malo"
-
-    if usuario == "operario" and clave == "operario":
+    if st.button("Predecir calidad"):
+        X = np.array(list(valores.values())).reshape(1, -1)
+        X_scaled = scaler.transform(X)
+        prediccion = modelo.predict(X_scaled)[0]
+        calidad = "Bueno" if prediccion == 1 else "Malo"
         st.success(f"Diagnóstico: {calidad}")
-    elif usuario == "gerente" and clave == "gerente":
-        st.subheader("📊 Resultados")
+
+elif usuario == "gerente" and clave == "gerente":
+    st.header("📊 Panel del Gerente")
+
+    # Datos por defecto para vino de mala calidad
+    valores_defecto = {
+        "fixed acidity": 7.0, "volatile acidity": 1.0, "citric acid": 0.0, "residual sugar": 1.0,
+        "chlorides": 0.1, "free sulfur dioxide": 5.0, "total sulfur dioxide": 15.0, "density": 1.003,
+        "pH": 3.0, "sulphates": 0.3, "alcohol": 8.0
+    }
+
+    valores = {}
+    for feature, default in valores_defecto.items():
+        valores[feature] = st.number_input(f"{feature}", value=default, format="%.2f")
+
+    if st.button("Predecir calidad"):
+        X = np.array(list(valores.values())).reshape(1, -1)
+        X_scaled = scaler.transform(X)
+        prediccion = modelo.predict(X_scaled)[0]
+        calidad = "Bueno" if prediccion == 1 else "Malo"
+
         st.write({
             "datos_ingresados": valores,
             "prediccion": calidad,
             "sugerencia": "Reducir acidez volátil en 0.2 y aumentar alcohol en 0.5."
         })
 
-        st.subheader("💬 Chat del Gerente")
-        pregunta = st.text_area("Ingrese su pregunta", value="¿Cómo mejorar la calidad del vino según las métricas?")
-        if st.button("Enviar pregunta"):
+    # Chat persistente con session_state
+    st.subheader("💬 Chat del Gerente")
+    if "preguntas" not in st.session_state:
+        st.session_state["preguntas"] = []
+    if "respuestas" not in st.session_state:
+        st.session_state["respuestas"] = []
+
+    pregunta = st.text_area("Ingrese su pregunta", value="", key="pregunta_input")
+    if st.button("Enviar pregunta"):
+        if pregunta.strip():
             respuesta = generar_respuesta(pregunta)
-            st.write("**Respuesta:**", respuesta)
-    else:
-        st.error("Credenciales incorrectas")
+            st.session_state["preguntas"].append(pregunta)
+            st.session_state["respuestas"].append(respuesta)
+
+    # Mostrar historial
+    for q, r in zip(st.session_state["preguntas"], st.session_state["respuestas"]):
+        st.markdown(f"**Pregunta:** {q}")
+        st.markdown(f"**Respuesta:** {r}")
+        st.write("---")
+
+elif usuario or clave:  # Si escribió algo pero no coincide
+    st.error("Credenciales incorrectas")
