@@ -12,15 +12,13 @@ scaler = joblib.load("scaler.pkl")
 # =========================
 # Configuración Hugging Face
 # =========================
-MODEL_NAME = "google/flan-t5-base"
+MODEL_NAME = "tiiuae/falcon-7b-instruct"
 API_URL = f"https://api-inference.huggingface.co/models/{MODEL_NAME}"
-
-# 🔹 Cargar token de forma segura desde Streamlit Secrets
-HF_TOKEN = st.secrets["HF_TOKEN"]
+HF_TOKEN = st.secrets["HF_TOKEN"]  # Token desde secrets
 headers = {"Authorization": f"Bearer {HF_TOKEN}"}
 
 def generar_respuesta(pregunta):
-    """Genera una respuesta usando el modelo de Hugging Face"""
+    """Genera una respuesta usando Hugging Face"""
     payload = {
         "inputs": pregunta,
         "parameters": {"max_new_tokens": 200, "temperature": 0.7}
@@ -46,20 +44,36 @@ def generar_respuesta(pregunta):
         return f"⚠️ Error: {e}"
 
 # =========================
-# Interfaz en Streamlit
+# Configuración de página
 # =========================
 st.set_page_config(page_title="Predicción Calidad de Vino", layout="centered")
-
 st.title("🍷 Predicción de Calidad del Vino")
-st.write("Ingrese sus credenciales para acceder.")
+
+# =========================
+# Control de sesión
+# =========================
+if "rol" not in st.session_state:
+    st.session_state["rol"] = None
 
 # =========================
 # Login
 # =========================
-usuario = st.text_input("Usuario")
-clave = st.text_input("Clave", type="password")
+if st.session_state["rol"] is None:
+    st.write("Ingrese sus credenciales para acceder.")
+    usuario = st.text_input("Usuario")
+    clave = st.text_input("Clave", type="password")
 
-# Datos precargados para vino de mala calidad
+    if st.button("Iniciar sesión"):
+        if usuario == "operario" and clave == "operario":
+            st.session_state["rol"] = "operario"
+        elif usuario == "gerente" and clave == "gerente":
+            st.session_state["rol"] = "gerente"
+        else:
+            st.error("Credenciales incorrectas")
+
+# =========================
+# Datos precargados para análisis
+# =========================
 datos_defecto = {
     "fixed acidity": 9.5,
     "volatile acidity": 0.8,
@@ -74,42 +88,42 @@ datos_defecto = {
     "alcohol": 9.0
 }
 
-# Crear inputs con valores por defecto
-valores = {}
-for feature, default in datos_defecto.items():
-    valores[feature] = st.number_input(f"{feature}", value=float(default), format="%.2f")
+# =========================
+# Vista Operario
+# =========================
+if st.session_state["rol"] == "operario":
+    st.subheader("Panel del Operario")
+    valores = {f: st.number_input(f, value=float(v), format="%.2f") for f, v in datos_defecto.items()}
+
+    if st.button("Predecir"):
+        X = np.array(list(valores.values())).reshape(1, -1)
+        X_scaled = scaler.transform(X)
+        prediccion = modelo.predict(X_scaled)[0]
+        calidad = "Bueno" if prediccion == 1 else "Malo"
+        st.success(f"Diagnóstico: {calidad}")
 
 # =========================
-# Lógica según usuario
+# Vista Gerente
 # =========================
-if usuario and clave:
-    if usuario == "operario" and clave == "operario":
-        if st.button("Predecir"):
-            X = np.array(list(valores.values())).reshape(1, -1)
-            X_scaled = scaler.transform(X)
-            prediccion = modelo.predict(X_scaled)[0]
-            calidad = "Bueno" if prediccion == 1 else "Malo"
-            st.success(f"Diagnóstico: {calidad}")
+elif st.session_state["rol"] == "gerente":
+    st.subheader("Panel del Gerente")
+    valores = {f: st.number_input(f, value=float(v), format="%.2f") for f, v in datos_defecto.items()}
 
-    elif usuario == "gerente" and clave == "gerente":
-        if st.button("Predecir"):
-            X = np.array(list(valores.values())).reshape(1, -1)
-            X_scaled = scaler.transform(X)
-            prediccion = modelo.predict(X_scaled)[0]
-            calidad = "Bueno" if prediccion == 1 else "Malo"
+    if st.button("Predecir"):
+        X = np.array(list(valores.values())).reshape(1, -1)
+        X_scaled = scaler.transform(X)
+        prediccion = modelo.predict(X_scaled)[0]
+        calidad = "Bueno" if prediccion == 1 else "Malo"
 
-            st.subheader("📊 Resultados")
-            st.write({
-                "datos_ingresados": valores,
-                "prediccion": calidad,
-                "sugerencia": "Reducir acidez volátil en 0.2 y aumentar alcohol en 0.5."
-            })
+        st.subheader("📊 Resultados")
+        st.write({
+            "datos_ingresados": valores,
+            "prediccion": calidad,
+            "sugerencia": "Reducir acidez volátil en 0.2 y aumentar alcohol en 0.5."
+        })
 
-        st.subheader("💬 Chat del Gerente")
-        pregunta = st.text_area("Ingrese su pregunta", value="¿Cómo mejorar la calidad del vino según las métricas?")
-        if st.button("Enviar pregunta"):
-            respuesta = generar_respuesta(pregunta)
-            st.write("**Respuesta:**", respuesta)
-
-    else:
-        st.error("Credenciales incorrectas")
+    st.subheader("💬 Chat del Gerente")
+    pregunta = st.text_area("Ingrese su pregunta", value="¿Cómo mejorar la calidad del vino según las métricas?")
+    if st.button("Enviar pregunta"):
+        respuesta = generar_respuesta(pregunta)
+        st.write("**Respuesta:**", respuesta)
