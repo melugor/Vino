@@ -14,11 +14,18 @@ scaler = joblib.load("scaler.pkl")
 # =========================
 MODEL_NAME = "facebook/blenderbot-400M-distill"
 API_URL = f"https://api-inference.huggingface.co/models/{MODEL_NAME}"
-HF_TOKEN = st.secrets["HF_TOKEN"]  # Token desde secrets
-headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+HF_TOKEN = st.secrets.get("HF_TOKEN", None)  # Leemos el token desde secrets
+
+# Mostrar si el token está cargado
+st.write("Token cargado:", HF_TOKEN[:10] + "..." if HF_TOKEN else "No hay token")
+
+headers = {"Authorization": f"Bearer {HF_TOKEN}"} if HF_TOKEN else {}
 
 def generar_respuesta(pregunta):
     """Genera una respuesta usando Hugging Face"""
+    if not HF_TOKEN:
+        return "⚠️ No se encontró el token. Configúralo en Streamlit Cloud."
+    
     payload = {
         "inputs": pregunta,
         "parameters": {"max_new_tokens": 200, "temperature": 0.7}
@@ -120,8 +127,7 @@ elif st.session_state["rol"] == "gerente":
             "datos_ingresados": valores,
             "prediccion": calidad,
             "sugerencia": "Reducir acidez volátil en 0.2 y aumentar alcohol en 0.5."
-        }
-st.write("Token cargado:", HF_TOKEN[:10] + "..." if HF_TOKEN else "No hay token") )
+        })
 
     st.subheader("💬 Chat del Gerente")
     pregunta = st.text_area("Ingrese su pregunta", value="¿Cómo mejorar la calidad del vino según las métricas?")
