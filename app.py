@@ -13,20 +13,15 @@ scaler = joblib.load("scaler.pkl")
 # ======================
 # Hugging Face API Setup
 # ======================
-HF_TOKEN = os.getenv("HF_TOKEN")  # lo pondremos en secrets de Streamlit
-HF_MODEL = "mistralai/Mistral-7B-Instruct-v0.2"
+HF_TOKEN = os.getenv("HF_TOKEN")  # Lee el token desde los secretos
 
 def consultar_huggingface(prompt):
+    API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-large"
     headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-    payload = {
-        "inputs": prompt,
-        "parameters": {"max_new_tokens": 200, "temperature": 0.5}
-    }
-    response = requests.post(
-        f"https://api-inference.huggingface.co/models/{HF_MODEL}",
-        headers=headers,
-        json=payload
-    )
+    payload = {"inputs": prompt}
+    
+    response = requests.post(API_URL, headers=headers, json=payload)
+    
     if response.status_code == 200:
         return response.json()[0]["generated_text"]
     else:
