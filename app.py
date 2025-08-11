@@ -13,16 +13,20 @@ scaler = joblib.load("scaler.pkl")
 # =========================
 # Configuración Hugging Face
 # =========================
-HF_TOKEN = os.getenv("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")  # Variable de entorno en Streamlit Cloud
-MODEL_NAME = "google/flan-t5-base"
+HF_TOKEN = os.getenv("HF_TOKEN", "hf_tu_token_aqui")  # Cambiar por tu token para pruebas locales
+MODEL_NAME = "tiiuae/falcon-7b-instruct"
 
 def generar_respuesta(pregunta):
+    """Llama a la API de Hugging Face para generar respuesta del modelo conversacional."""
+    if not HF_TOKEN or HF_TOKEN.startswith("hf_tu_token_aqui"):
+        return "⚠️ Token de Hugging Face no configurado correctamente."
+
     API_URL = f"https://api-inference.huggingface.co/models/{MODEL_NAME}"
     headers = {"Authorization": f"Bearer {HF_TOKEN}"}
 
     payload = {
-        "inputs": pregunta,
-        "parameters": {"max_new_tokens": 200, "temperature": 0.7}
+        "inputs": f"Pregunta: {pregunta}\nRespuesta:",
+        "parameters": {"max_new_tokens": 250, "temperature": 0.7}
     }
 
     try:
@@ -35,10 +39,12 @@ def generar_respuesta(pregunta):
                 return data["generated_text"]
             else:
                 return "⚠️ No se pudo interpretar la respuesta del modelo."
+        elif response.status_code == 401:
+            return "⚠️ Token inválido o sin permisos. Revisa tu token de Hugging Face."
         elif response.status_code == 404:
             return "⚠️ Modelo no encontrado en Hugging Face."
         else:
-            return f"⚠️ Error {response.status_code}: No se pudo obtener respuesta."
+            return f"⚠️ Error {response.status_code}: {response.text}"
     except Exception as e:
         return f"⚠️ Error: {e}"
 
@@ -53,73 +59,69 @@ st.write("Ingrese sus credenciales para acceder.")
 usuario = st.text_input("Usuario")
 clave = st.text_input("Clave", type="password")
 
-# Credenciales de ejemplo
-if usuario == "operario" and clave == "operario":
-    st.header("🔧 Panel del Operario")
-    
-    # Datos por defecto para vino de mala calidad
-    valores_defecto = {
-        "fixed acidity": 7.0, "volatile acidity": 1.0, "citric acid": 0.0, "residual sugar": 1.0,
-        "chlorides": 0.1, "free sulfur dioxide": 5.0, "total sulfur dioxide": 15.0, "density": 1.003,
-        "pH": 3.0, "sulphates": 0.3, "alcohol": 8.0
-    }
+# Datos de entrada precargados para un vino de mala calidad
+caracteristicas = [
+    "fixed acidity", "volatile acidity", "citric acid", "residual sugar",
+    "chlorides", "free sulfur dioxide", "total sulfur dioxide", "density",
+    "pH", "sulphates", "alcohol"
+]
 
-    valores = {}
-    for feature, default in valores_defecto.items():
-        valores[feature] = st.number_input(f"{feature}", value=default, format="%.2f")
+# Valores precargados de ejemplo (vino de baja calidad)
+valores_por_defecto = {
+    "fixed acidity": 6.0,
+    "volatile acidity": 0.7,
+    "citric acid": 0.0,
+    "residual sugar": 1.9,
+    "chlorides": 0.076,
+    "free sulfur dioxide": 11.0,
+    "total sulfur dioxide": 34.0,
+    "density": 0.9978,
+    "pH": 3.51,
+    "sulphates": 0.56,
+    "alcohol": 9.4
+}
 
-    if st.button("Predecir calidad"):
-        X = np.array(list(valores.values())).reshape(1, -1)
-        X_scaled = scaler.transform(X)
-        prediccion = modelo.predict(X_scaled)[0]
-        calidad = "Bueno" if prediccion == 1 else "Malo"
+valores = {}
+for feature in caracteristicas:
+    valores[feature] = st.number_input(
+        f"{feature}", 
+        value=valores_por_defecto[feature], 
+        format="%.3f"
+    )
+
+# =========================
+# Lógica de predicción
+# =========================
+if st.button("Predecir"):
+    X = np.array(list(valores.values())).reshape(1, -1)
+    X_scaled = scaler.transform(X)
+    prediccion = modelo.predict(X_scaled)[0]
+
+    calidad = "Bueno" if prediccion == 1 else "Malo"
+
+    # ===== Operario =====
+    if usuario == "operario" and clave == "operario":
         st.success(f"Diagnóstico: {calidad}")
 
-elif usuario == "gerente" and clave == "gerente":
-    st.header("📊 Panel del Gerente")
-
-    # Datos por defecto para vino de mala calidad
-    valores_defecto = {
-        "fixed acidity": 7.0, "volatile acidity": 1.0, "citric acid": 0.0, "residual sugar": 1.0,
-        "chlorides": 0.1, "free sulfur dioxide": 5.0, "total sulfur dioxide": 15.0, "density": 1.003,
-        "pH": 3.0, "sulphates": 0.3, "alcohol": 8.0
-    }
-
-    valores = {}
-    for feature, default in valores_defecto.items():
-        valores[feature] = st.number_input(f"{feature}", value=default, format="%.2f")
-
-    if st.button("Predecir calidad"):
-        X = np.array(list(valores.values())).reshape(1, -1)
-        X_scaled = scaler.transform(X)
-        prediccion = modelo.predict(X_scaled)[0]
-        calidad = "Bueno" if prediccion == 1 else "Malo"
-
+    # ===== Gerente =====
+    elif usuario == "gerente" and clave == "gerente":
+        st.subheader("📊 Resultados")
         st.write({
             "datos_ingresados": valores,
             "prediccion": calidad,
             "sugerencia": "Reducir acidez volátil en 0.2 y aumentar alcohol en 0.5."
         })
 
-    # Chat persistente con session_state
-    st.subheader("💬 Chat del Gerente")
-    if "preguntas" not in st.session_state:
-        st.session_state["preguntas"] = []
-    if "respuestas" not in st.session_state:
-        st.session_state["respuestas"] = []
-
-    pregunta = st.text_area("Ingrese su pregunta", value="", key="pregunta_input")
-    if st.button("Enviar pregunta"):
-        if pregunta.strip():
+        st.subheader("💬 Chat del Gerente")
+        pregunta = st.text_area(
+            "Ingrese su pregunta",
+            value="¿Cómo mejorar la calidad del vino según las métricas?"
+        )
+        if st.button("Enviar pregunta"):
             respuesta = generar_respuesta(pregunta)
-            st.session_state["preguntas"].append(pregunta)
-            st.session_state["respuestas"].append(respuesta)
+            st.write("**Pregunta:**", pregunta)
+            st.write("**Respuesta:**", respuesta)
 
-    # Mostrar historial
-    for q, r in zip(st.session_state["preguntas"], st.session_state["respuestas"]):
-        st.markdown(f"**Pregunta:** {q}")
-        st.markdown(f"**Respuesta:** {r}")
-        st.write("---")
-
-elif usuario or clave:  # Si escribió algo pero no coincide
-    st.error("Credenciales incorrectas")
+    # ===== Credenciales incorrectas =====
+    else:
+        st.error("Credenciales incorrectas")
