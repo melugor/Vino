@@ -12,7 +12,7 @@ scaler = joblib.load("scaler.pkl")
 # =========================
 # Configuración Hugging Face
 # =========================
-MODEL_NAME = "tiiuae/falcon-7b-instruct"
+MODEL_NAME = "facebook/blenderbot-400M-distill"
 API_URL = f"https://api-inference.huggingface.co/models/{MODEL_NAME}"
 HF_TOKEN = st.secrets["HF_TOKEN"]  # Token desde secrets
 headers = {"Authorization": f"Bearer {HF_TOKEN}"}
