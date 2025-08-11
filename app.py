@@ -13,7 +13,7 @@ scaler = joblib.load("scaler.pkl")
 # =========================
 # Configuración Hugging Face
 # =========================
-HF_TOKEN = os.getenv("HF_TOKEN")  # Variable de entorno en Streamlit Cloud
+HF_TOKEN = os.getenv("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")  # Variable de entorno en Streamlit Cloud
 MODEL_NAME = "google/flan-t5-base"
 
 def generar_respuesta(pregunta):
