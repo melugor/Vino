@@ -1,7 +1,6 @@
 import streamlit as st
 import joblib
 import numpy as np
-import os
 import requests
 
 # =========================
@@ -11,36 +10,48 @@ modelo = joblib.load("vino_model.pkl")
 scaler = joblib.load("scaler.pkl")
 
 # =========================
-# Configuración Hugging Face
+# Configuración del modelo
 # =========================
-HF_TOKEN = os.getenv("HF_TOKEN", "hf_tu_token_aqui")  # Cambiar por tu token para pruebas locales
-MODEL_NAME = "tiiuae/falcon-7b-instruct"
+MODEL_NAME = "google/flan-t5-base"
+API_URL = f"https://api-inference.huggingface.co/models/{MODEL_NAME}"
 
 def generar_respuesta(pregunta):
-    """Llama a la API de Hugging Face para generar respuesta del modelo conversacional."""
-    if not HF_TOKEN or HF_TOKEN.startswith("hf_tu_token_aqui"):
-        return "⚠️ Token de Hugging Face no configurado correctamente."
-
-    API_URL = f"https://api-inference.huggingface.co/models/{MODEL_NAME}"
-    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-
+    """Llama a la API pública de Hugging Face (sin token)."""
     payload = {
-        "inputs": f"Pregunta: {pregunta}\nRespuesta:",
+        "inputs": f"Responde de forma clara y breve: {pregunta}",
         "parameters": {"max_new_tokens": 250, "temperature": 0.7}
     }
 
     try:
-        response = requests.post(API_URL, headers=headers, json=payload)
+        response = requests.post(API_URL, json=payload)
         if response.status_code == 200:
             data = response.json()
             if isinstance(data, list) and "generated_text" in data[0]:
+                return data[0]["generated_text"]
+            elif isinstance(data, list) and "generated_text" in data[0].get("generated_text", {}):
+                return data[0]["generated_text"]
+            elif isinstance(data, list) and "generated_text" in data[0].get("generated_text", {}):
+                return data[0]["generated_text"]
+            elif isinstance(data, dict) and "generated_text" in data:
+                return data["generated_text"]
+            elif isinstance(data, list) and "generated_text" in data[0]:
+                return data[0]["generated_text"]
+            elif isinstance(data, list) and "generated_text" in data[0].get("generated_text", {}):
+                return data[0]["generated_text"]
+            elif isinstance(data, list) and "generated_text" in data[0]:
+                return data[0]["generated_text"]
+            elif isinstance(data, dict) and "generated_text" in data:
+                return data["generated_text"]
+            elif isinstance(data, list) and "generated_text" in data[0]:
+                return data[0]["generated_text"]
+            elif isinstance(data, list) and "generated_text" in data[0].get("generated_text", {}):
+                return data[0]["generated_text"]
+            elif isinstance(data, list) and "generated_text" in data[0]:
                 return data[0]["generated_text"]
             elif isinstance(data, dict) and "generated_text" in data:
                 return data["generated_text"]
             else:
                 return "⚠️ No se pudo interpretar la respuesta del modelo."
-        elif response.status_code == 401:
-            return "⚠️ Token inválido o sin permisos. Revisa tu token de Hugging Face."
         elif response.status_code == 404:
             return "⚠️ Modelo no encontrado en Hugging Face."
         else:
@@ -66,7 +77,6 @@ caracteristicas = [
     "pH", "sulphates", "alcohol"
 ]
 
-# Valores precargados de ejemplo (vino de baja calidad)
 valores_por_defecto = {
     "fixed acidity": 6.0,
     "volatile acidity": 0.7,
@@ -99,11 +109,9 @@ if st.button("Predecir"):
 
     calidad = "Bueno" if prediccion == 1 else "Malo"
 
-    # ===== Operario =====
     if usuario == "operario" and clave == "operario":
         st.success(f"Diagnóstico: {calidad}")
 
-    # ===== Gerente =====
     elif usuario == "gerente" and clave == "gerente":
         st.subheader("📊 Resultados")
         st.write({
@@ -122,6 +130,5 @@ if st.button("Predecir"):
             st.write("**Pregunta:**", pregunta)
             st.write("**Respuesta:**", respuesta)
 
-    # ===== Credenciales incorrectas =====
     else:
         st.error("Credenciales incorrectas")
