@@ -121,6 +121,7 @@ elif st.session_state["rol"] == "gerente":
             "prediccion": calidad,
             "sugerencia": "Reducir acidez volátil en 0.2 y aumentar alcohol en 0.5."
         })
+st.write("Token cargado:", HF_TOKEN[:10] + "..." if HF_TOKEN else "No hay token") 
 
     st.subheader("💬 Chat del Gerente")
     pregunta = st.text_area("Ingrese su pregunta", value="¿Cómo mejorar la calidad del vino según las métricas?")
