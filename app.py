@@ -10,7 +10,7 @@ modelo = joblib.load("vino_model.pkl")
 scaler = joblib.load("scaler.pkl")
 
 # =========================
-# Configuración del modelo
+# Configuración del modelo (sin token)
 # =========================
 MODEL_NAME = "google/flan-t5-base"
 API_URL = f"https://api-inference.huggingface.co/models/{MODEL_NAME}"
@@ -45,19 +45,21 @@ if "usuario" not in st.session_state:
     st.session_state.usuario = None
 if "chat_historial" not in st.session_state:
     st.session_state.chat_historial = []
+if "logueado" not in st.session_state:
+    st.session_state.logueado = False
 
 st.title("🍷 Predicción de Calidad del Vino")
 
 # =========================
 # Pantalla de login
 # =========================
-if st.session_state.usuario is None:
+if not st.session_state.logueado:
     usuario = st.text_input("Usuario")
     clave = st.text_input("Clave", type="password")
     if st.button("Ingresar"):
         if (usuario == "operario" and clave == "operario") or (usuario == "gerente" and clave == "gerente"):
             st.session_state.usuario = usuario
-            st.experimental_rerun()
+            st.session_state.logueado = True
         else:
             st.error("Credenciales incorrectas")
 
@@ -127,9 +129,13 @@ elif st.session_state.usuario == "gerente":
         if pregunta.strip():
             respuesta = generar_respuesta(pregunta)
             st.session_state.chat_historial.append((pregunta, respuesta))
-            st.experimental_rerun()
 
     # Mostrar historial de chat
     for idx, (q, r) in enumerate(st.session_state.chat_historial):
         st.write(f"**Pregunta {idx+1}:** {q}")
         st.write(f"**Respuesta:** {r}")
+
+# Botón para cerrar sesión
+if st.session_state.logueado:
+    if st.button("Cerrar sesión"):
+        st.session_state.clear()
